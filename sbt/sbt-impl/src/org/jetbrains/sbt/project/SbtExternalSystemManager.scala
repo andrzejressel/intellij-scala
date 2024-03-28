@@ -106,7 +106,8 @@ object SbtExternalSystemManager {
       userSetEnvironment = settingsState.sbtEnvironment.asScala.toMap,
       passParentEnvironment = settingsState.sbtPassParentEnvironment,
       insertProjectTransitiveDependencies = projectSettings.insertProjectTransitiveDependencies,
-      useSeparateCompilerOutputPaths = projectSettings.useSeparateCompilerOutputPaths
+      useSeparateCompilerOutputPaths = projectSettings.useSeparateCompilerOutputPaths,
+      separateProdTestSources = projectSettings.separateProdAndTestSources
     )
   }
 
