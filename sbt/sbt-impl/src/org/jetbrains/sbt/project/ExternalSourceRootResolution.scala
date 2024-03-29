@@ -385,7 +385,7 @@ trait ExternalSourceRootResolution { self: SbtProjectResolver =>
 
     def processRoots(roots: Seq[(String, ExternalSystemSourceType)], module: SbtSourceSetModuleNode, subPath: String): Unit =
       if (roots.nonEmpty) {
-        // it is okey to hardcode root path to src/main or src/test, because the current logic with shared sources
+        // it is correct to hardcode root path to src/main or src/test, because the current logic with shared sources
         // allows the creation of shared source only in those directories. See basePathFromKnownHardcodedDefaultPaths
         val contentRootNodes = createContentRootNodes(roots, Seq(s"$groupPath/src/$subPath"))
         module.addAll(contentRootNodes)
@@ -421,7 +421,10 @@ trait ExternalSourceRootResolution { self: SbtProjectResolver =>
     mainModule.addAll(createUnmanagedDependencies(unmanagedLibraryDependencies.forProduction)(mainModule))
     testModule.addAll(createUnmanagedDependencies(unmanagedLibraryDependencies.forTest)(testModule))
 
-    parentModule.addAll(Seq(mainModule, testModule))
+    // add module to the project only if roots are not empty
+    Seq((sourcesRoots.nonEmpty, mainModule), (testRoots.nonEmpty, testModule))
+      .filter(_._1)
+      .foreach { case(_, module) => parentModule.add(module) }
 
     completeModuleSourceSet
   }
