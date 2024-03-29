@@ -5,15 +5,37 @@ import com.intellij.openapi.externalSystem.model.project.{ModuleData, ProjectDat
 import com.intellij.openapi.externalSystem.service.project.IdeModifiableModelsProvider
 import com.intellij.openapi.externalSystem.service.project.manage.AbstractModuleDataService
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
+import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil.{getExternalProjectPath, isExternalSystemAwareModule}
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.util.Computable
+import com.intellij.openapi.util.io.FileUtil.pathsEqual
+import com.intellij.openapi.vfs.VfsUtilCore
 import org.jetbrains.sbt.SbtUtil
 import org.jetbrains.sbt.project.data.findModuleForParentOfDataNode
 
 import java.util
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 abstract class AbstractSbtModuleDataService[T <: ModuleData] extends AbstractModuleDataService[T] {
+
+  override def importData(
+    toImport: util.Collection[_ <: DataNode[T]],
+    projectData: ProjectData,
+    project: Project,
+    modelsProvider: IdeModifiableModelsProvider
+  ): Unit = {
+    toImport.asScala.foreach { node =>
+      val newInternalModuleName = generateNewInternalModuleNameIfApplicable(node, modelsProvider)
+      newInternalModuleName match {
+        case Some(name) if isModuleNameApplicableToModuleData(name, modelsProvider, node.getData) =>
+          node.getData.setInternalName(name)
+        case _ =>
+      }
+    }
+    super.importData(toImport, projectData, project, modelsProvider)
+  }
 
   override def computeOrphanData(
     toImport: util.Collection[_ <: DataNode[T]],
@@ -60,6 +82,21 @@ abstract class AbstractSbtModuleDataService[T <: ModuleData] extends AbstractMod
     data: T,
     parentModuleActualName: String,
   ): Option[String]
+
+  private def isModuleNameApplicableToModuleData(
+    moduleName: String,
+    modelsProvider: IdeModifiableModelsProvider,
+    moduleData: T
+  ): Boolean = {
+    val ideModule = modelsProvider.findIdeModule(moduleName)
+    ideModule != null && {
+      //note: the logic is copied from the private method com.intellij.openapi.externalSystem.service.project.IdeModelsProviderImpl.isApplicableIdeModule
+      for (root <- ModuleRootManager.getInstance(ideModule).getContentRoots) {
+        if (VfsUtilCore.pathEqualsTo(root, moduleData.getLinkedExternalProjectPath)) return true
+      }
+      isExternalSystemAwareModule(moduleData.getOwner, ideModule) && pathsEqual(getExternalProjectPath(ideModule), moduleData.getLinkedExternalProjectPath)
+    }
+  }
 
   private def generateNewInternalModuleNameIfApplicable(
     dataNode: DataNode[T],
