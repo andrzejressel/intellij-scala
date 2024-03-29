@@ -8,7 +8,6 @@ import org.jetbrains.plugins.scala.compiler.data.SbtData
 import org.jetbrains.plugins.scala.project.ProjectExt
 import org.jetbrains.plugins.scala.settings.{ScalaCompileServerSettings, ScalaHighlightingMode}
 import org.jetbrains.sbt.SbtUtil
-import org.jetbrains.sbt.project.settings.SbtProjectSettings
 
 import java.util.Collections
 import scala.jdk.CollectionConverters._
@@ -23,6 +22,7 @@ class ScalaBuildProcessParametersProvider(project: Project)
           parallelCompilationOptions() ++
           addOpens() ++
           transitiveProjectDependenciesParams() ++
+          prodTestSourcesSeparatedParams() ++
           java9rtParams() :+
           scalaCompileServerSystemDir() :+
           // this is the only way to propagate registry values to the JPS process
@@ -33,6 +33,11 @@ class ScalaBuildProcessParametersProvider(project: Project)
   private def transitiveProjectDependenciesParams(): Seq[String] = {
     val projectTransitiveDependenciesUsed = SbtUtil.isBuiltWithProjectTransitiveDependencies(project)
     Seq(s"-Dsbt.process.dependencies.recursively=${!projectTransitiveDependenciesUsed}")
+  }
+
+  private def prodTestSourcesSeparatedParams(): Seq[String] = {
+    val projectProdTestSourcesSeparated = SbtUtil.isBuiltWithProdTestSourcesSeparated(project)
+    Seq(s"-Dsbt.prod.test.separated=$projectProdTestSourcesSeparated")
   }
 
   private def customScalaCompilerInterfaceDir(): Option[String] = {
